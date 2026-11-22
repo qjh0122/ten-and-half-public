@@ -13,6 +13,11 @@ concurrency:
 
 jobs:
   test:
+    # 只在公开库跑。本账号私有仓库的 Actions 额度已用尽（2026-11-22 实测）：
+    # 私有库里的 job 会以 steps=0 直接失败，每次 push 白留一条红叉，还照样计费。
+    # 公开库 Actions 免费，且内容是私有库 HEAD 的逐字节快照，验证价值等价。
+    # 额度恢复后删掉这一行，私有库就会跟着跑。
+    if: ${{ github.event.repository.private == false }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
@@ -32,9 +37,8 @@ jobs:
         run: npm run check:version
 
       # 公开库是只读镜像：私有发布脚本、探针产物都不该出现在这里。
-      # 用 repository.private 判断而不是硬编码仓库名，改名不会让这一步静默失效。
-      - name: 公库完整性自检（仅公开库）
-        if: ${{ github.event.repository.private == false }}
+      # 上面已把 job 限定在公开库，这里不再重复判断。
+      - name: 公库完整性自检（不该出现发布脚本与探针产物）
         run: |
           fail=0
           for p in tools/publish-public.sh tmp-shots .probe-profile .workbuddy; do

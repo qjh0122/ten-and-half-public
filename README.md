@@ -130,6 +130,11 @@ SD.debug.setHand(0, [2, 11])   // 给 0 号位发指定牌，用来验「2+J 不
 **两者不能直接同步分支**：那会把全部历史连同开发日记、本机路径、线上入口一起公开。
 公开库是只读镜像，不接受 PR，改动请在私有库进行。
 
+公开库带一条 GitHub Actions（`.github/workflows/test.yml`）：push / PR 时跑 `npm test`
+与 `npm run check:version`，再断言公库里不该出现发布脚本与探针产物。
+私有库不跑这条 workflow —— 私有仓库的 Actions 额度已用尽，job 会以 `steps=0` 直接失败，
+只会在每次 push 后留一条红叉。本地 `npm test` 仍是开发时的主闸门。
+
 ## 改动纪律（踩过的坑）
 
 - **改 JS/CSS 必须同步改版本号**：`index.html` 与 `sw.js` 里的 `?v=` 是精确匹配的，
