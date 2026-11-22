@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="十点半">
+  <rect width="512" height="512" rx="96" fill="#0F2B22"/>
+  <circle cx="256" cy="256" r="186" fill="none" stroke="#F5C15C" stroke-width="14"/>
+  <rect x="120" y="128" width="150" height="212" rx="18" fill="#FFF7E8" transform="rotate(-12 195 234)"/>
+  <rect x="242" y="128" width="150" height="212" rx="18" fill="#FFF7E8" transform="rotate(12 317 234)"/>
+  <text x="195" y="240" font-family="system-ui,sans-serif" font-size="76" font-weight="700" fill="#D62828" text-anchor="middle" transform="rotate(-12 195 234)">10</text>
+  <text x="317" y="240" font-family="system-ui,sans-serif" font-size="76" font-weight="700" fill="#D62828" text-anchor="middle" transform="rotate(12 317 234)">½</text>
+  <text x="256" y="440" font-family="system-ui,sans-serif" font-size="58" font-weight="700" fill="#F5C15C" text-anchor="middle">十点半</text>
+</svg>

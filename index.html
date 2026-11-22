@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<!-- 禁止页面缩放：牌桌按 750 设计空间整体缩放，再叠一层浏览器缩放会让牌看不清。
+     iOS Safari 故意忽略 maximum-scale，真正的锁在 js/game.js 的双击/捏合拦截。 -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#16382F">
+<meta name="app-version" content="202611232c">
+<title>十点半</title>
+<!-- 首帧底色：style.css 是 render-blocking，先垫一层同样的绿，避免白屏 -->
+<style>html,body{background:#0F2B22}</style>
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="十点半">
+
+<!-- 存储收口必须最早加载：下面两段内联脚本与 sfx.js 都读它 -->
+<script src="./js/store.js?v=202611232c"></script>
+<script>
+/* sharecode 记忆与 manifest 注入（与六选五同因同解）：
+ * 部署网关要求每个请求带 ?sharecode=，而 manifest / 图标是**浏览器内部**抓的，
+ * 不经过 Service Worker。写死裸路径会 403 → 安卓装不出 WebAPK、iOS 图标退化成截图。
+ * 所以动态创建 <link>，保证它第一次出现在 DOM 里时 href 就是对的。 */
+(function () {
+  var KEY = (window.LXW && LXW.Store) ? LXW.Store.KEYS.SHARE : 'sd10_share_v1';
+  var code = '';
+  try {
+    code = new URLSearchParams(location.search || '').get('sharecode') || '';
+    if (code) { LXW.Store.write(KEY, code); }
+    else {
+      code = LXW.Store.read(KEY, '') || '';
+      if (code) {
+        var u = new URL(location.href);
+        u.searchParams.set('sharecode', code);
+        history.replaceState(null, '', u.toString());
+      }
+    }
+  } catch (e) { code = ''; }
+  var q = code ? ('?sharecode=' + encodeURIComponent(code)) : '';
+  function addLink(rel, href, attrs) {
+    var l = document.createElement('link');
+    l.rel = rel; l.href = href;
+    if (attrs) for (var k in attrs) l.setAttribute(k, attrs[k]);
+    document.head.appendChild(l);
+  }
+  try {
+    addLink('manifest', './manifest.webmanifest' + q);
+    addLink('apple-touch-icon', './icons/icon-192.png' + q);
+    addLink('icon', './icons/icon-192.png' + q, { type: 'image/png' });
+  } catch (e) {}
+})();
+</script>
+<script>
+/* 首屏预缩放：把「750 设计空间 → 屏幕」提前到 <head>，
+ * 否则 boot 之前 750 宽的设计稿是 1:1 铺在 390 宽屏上，先闪一屏错位版式。 */
+(function () {
+  try {
+    var vw = window.innerWidth, vh = window.innerHeight;
+    if (!(vw > 0) || !(vh > 0)) return;
+    if (vw >= vh) return;                 // 横屏交给 game.js
+    document.documentElement.style.setProperty('--pt-scale', vw / 750);
+  } catch (e) {}
+})();
+</script>
+<script>
+/* 安装引导的事件捕获点：beforeinstallprompt 只来一次，
+ * 必须早于任何 defer 脚本挂监听，否则永远拿不到。 */
+window.__sdInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', function (e) {
+  e.preventDefault();
+  window.__sdInstallPrompt = e;
+});
+</script>
+
+<link rel="stylesheet" href="./css/style.css?v=202611232c">
+<link rel="stylesheet" href="./css/records.css?v=202611232c">
+<link rel="stylesheet" href="./css/ten.css?v=202611232c">
+</head>
+<body>
+<div id="net-banner" class="net-banner hidden" role="status" aria-live="polite">网络已断开 · 对局与战绩仍可正常使用</div>
+
+<div id="viewport">
+<div id="stage">
+
+  <!-- ============ 首页 ============ -->
+  <section id="screen-home" class="screen">
+    <div class="home-deco deco-a"></div>
+    <div class="home-deco deco-b"></div>
+    <button class="audio-toggle js-audio" type="button" data-audio-toggle aria-label="声音" aria-pressed="true">
+      <svg class="au-on" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <path d="M4 10.2h3.5L13 5.5v15l-5.5-4.7H4v-5.6Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+        <path d="M16.6 9.3a5.2 5.2 0 0 1 0 7.4M19.4 6.8a8.8 8.8 0 0 1 0 12.4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+      <svg class="au-off hidden" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <path d="M4 10.2h3.5L13 5.5v15l-5.5-4.7H4v-5.6Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
+        <path d="M17.2 10.2l5.2 5.2M22.4 10.2l-5.2 5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </button>
+
+    <div class="home-inner">
+      <div class="logo">
+        <svg viewBox="0 0 96 96" role="img" aria-label="十点半" xmlns="http://www.w3.org/2000/svg">
+          <rect width="96" height="96" fill="#16382F"/>
+          <rect x="5" y="5" width="86" height="86" rx="13" fill="#D8C88A"/>
+          <rect x="8" y="8" width="80" height="80" rx="9" fill="#1E5A44"/>
+          <rect x="19" y="13" width="58" height="70" rx="5" fill="#FFFFFF"/>
+          <text x="48" y="46" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
+                font-size="22" font-weight="800" fill="#D02828">10.5</text>
+          <text x="48" y="70" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif"
+                font-size="22" fill="#1A1D23">&#9824;</text>
+        </svg>
+      </div>
+      <h1 class="title">十点半</h1>
+      <p class="subtitle">轮流坐庄 · 压线博弈</p>
+
+      <!-- 首页信息条：和战绩页的汇总卡同一套语言 -->
+      <div class="home-strip" id="homeStrip">
+        <div class="hs-cell"><span class="hs-k">对局</span><b class="hs-v" id="homeRounds">0</b></div>
+        <i class="hs-sep" aria-hidden="true"></i>
+        <div class="hs-cell"><span class="hs-k">胜率</span><b class="hs-v" id="homeRate">—</b></div>
+        <i class="hs-sep" aria-hidden="true"></i>
+        <div class="hs-cell"><span class="hs-k">最长连胜</span><b class="hs-v" id="homeStreak">0</b></div>
+      </div>
+
+      <button id="btn-start" class="btn btn-primary btn-lg" type="button">开始游戏</button>
+
+      <div class="entry-links">
+        <button id="btn-rules" class="entry-link" type="button">
+          <svg viewBox="0 0 26 26" fill="none" aria-hidden="true">
+            <path d="M4 5.5h7.2c1.3 0 2 .8 2 2v13c0-1.2-.8-2-2-2H4v-13Z" stroke="#B8C0CC" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M22 5.5h-7.2c-1.3 0-2 .8-2 2v13c0-1.2.8-2 2-2H22v-13Z" stroke="#B8C0CC" stroke-width="1.7" stroke-linejoin="round"/>
+          </svg>
+          <span class="entry-label">玩法规则</span>
+        </button>
+        <button id="btn-records-home" class="entry-link is-new" type="button">
+          <svg viewBox="0 0 26 26" fill="none" aria-hidden="true">
+            <path d="M13 4.2 15.6 10l6.2.7-4.6 4.2 1.2 6.1L13 18.2 7.6 21l1.2-6.1L4.2 10.7 10.4 10 13 4.2Z" stroke="#F5C15C" stroke-width="1.7" stroke-linejoin="round"/>
+          </svg>
+          <span class="entry-label">我的战绩</span>
+        </button>
+        <button id="btn-ach-home" class="entry-link" type="button">
+          <svg viewBox="0 0 26 26" fill="none" aria-hidden="true">
+            <path d="M8.4 4.6h9.2v5.1a4.6 4.6 0 0 1-9.2 0V4.6Z" stroke="#9BE1C4" stroke-width="1.7" stroke-linejoin="round"/>
+            <path d="M8.4 6.3H5.5v1.5a3.4 3.4 0 0 0 3.2 3.4M17.6 6.3h2.9v1.5a3.4 3.4 0 0 1-3.2 3.4" stroke="#9BE1C4" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M13 14.3v3.4M9.7 21.3h6.6" stroke="#9BE1C4" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="entry-label">我的成就</span>
+        </button>
+        <button id="btn-settings" class="entry-link" type="button">
+          <svg viewBox="0 0 26 26" fill="none" aria-hidden="true">
+            <circle cx="13" cy="13" r="3.4" stroke="#B8C0CC" stroke-width="1.7"/>
+            <path d="M13 4.4v2.2M13 19.4v2.2M4.4 13h2.2M19.4 13h2.2M7 7l1.6 1.6M17.4 17.4 19 19M19 7l-1.6 1.6M8.6 17.4 7 19"
+                  stroke="#B8C0CC" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+          <span class="entry-label">设置</span>
+        </button>
+      </div>
+
+      <div class="install-bar hidden" id="install-bar">
+        <button class="install-main" type="button" id="btn-install">
+          <svg class="install-ico" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+            <rect x="6" y="2.6" width="14" height="20.8" rx="3.2" stroke="#F5C15C" stroke-width="1.7"/>
+            <path d="M13 8.4v7.2M10.2 12.9 13 15.8l2.8-2.9" stroke="#F5C15C" stroke-width="1.7"
+                  stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="install-text" id="install-text">添加到桌面，下次一点就开</span>
+          <span class="install-go" id="install-go">安装</span>
+        </button>
+        <button class="install-x" type="button" id="btn-install-x" aria-label="不再提示">×</button>
+        <p class="install-steps hidden" id="install-steps"></p>
+      </div>
+      <p class="home-foot">离线可玩 · 战绩与成就只保存在本机</p>
+    </div>
+  </section>
+
+  <!-- ============ 牌桌 ============ -->
+  <section id="screen-game" class="screen hidden">
+    <header class="tt-top">
+      <button id="btn-game-home" class="rp-back" type="button" aria-label="回首页">
+        <svg viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <path d="M21.5 6.5 11 17l10.5 10.5" stroke="#FFF7E8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="tt-stat"><span class="tt-k">庄池</span><b class="tt-v" id="gBank">20</b></div>
+      <div class="tt-stat"><span class="tt-k">本场局数</span><b class="tt-v" id="gRound">1</b></div>
+      <div class="tt-stat"><span class="tt-k">牌堆</span><b class="tt-v" id="gDeck">52</b></div>
+    </header>
+
+    <div class="tt-felt">
+      <!-- 庄家区：庄家的手牌在闲家行动期间是暗牌（点数打 ?），轮到庄家才翻 -->
+      <div class="tt-zone tt-zone-dealer" id="dealerZone">
+        <div class="tt-zone-head">
+          <span class="tt-banker-tag">庄</span>
+          <span class="tt-zone-name" id="dName">你</span>
+          <b class="tt-pts" id="dPts">—</b>
+          <span class="tt-zone-chips" id="dChips">—</span>
+        </div>
+        <div class="tt-cards" id="dCards"></div>
+      </div>
+
+      <div class="tt-mid">
+        <span class="tt-mid-label" aria-hidden="true">10.5</span>
+        <span class="tt-status" id="ttStatus">请选择下注档位</span>
+      </div>
+
+      <!-- 闲家座位：人数变化时由 JS 重建 -->
+      <div class="tt-seats" id="seats"></div>
+    </div>
+
+    <!-- 动作条在文档流里，不绝对定位到底部：
+         之前那版用 position:absolute; bottom:28px 挂在舞台底部，
+         真机上 innerHeight 一旦小于 screen.height，动作条就被推出可视区 —— 表现为「进去是空的」。 -->
+    <div class="game-bottom">
+      <div class="bet-row" id="betRow" role="group" aria-label="下注档位">
+        <button class="bet-chip" type="button" data-bet="1" aria-label="下注一">
+          <b>1</b><i>小注</i>
+        </button>
+        <button class="bet-chip" type="button" data-bet="2" aria-label="下注二">
+          <b>2</b><i>中注</i>
+        </button>
+        <button class="bet-chip" type="button" data-bet="3" aria-label="下注三">
+          <b>3</b><i>大注</i>
+        </button>
+      </div>
+      <div class="game-actions">
+        <button id="btnMain" class="btn btn-primary btn-submit" type="button">确认下注 1</button>
+        <button id="btnStand" class="btn btn-quiet btn-sm hidden" type="button">停牌</button>
+      </div>
+      <p class="tt-hint" id="hintLine">下注 1–3 枚 · 同点与都是十点半都算庄大</p>
+    </div>
+  </section>
+
+  <!-- ============ 本局结算 ============ -->
+  <section id="screen-settle" class="screen hidden">
+    <h1 class="title ribbon-title">本局结束</h1>
+    <div id="settle-body" class="settle-body">
+      <div class="settle-inner">
+        <div class="st-hero">
+          <div id="stBadge" class="st-badge win">胜</div>
+          <div id="stNet" class="st-net pos">+3</div>
+          <p id="stSub" class="st-sub">比点胜出</p>
+        </div>
+
+        <div class="rs-list" id="rsList"></div>
+
+        <ul class="st-rows">
+          <li><span>庄池</span><b id="stBank">20 → 23</b></li>
+          <li><span>庄家</span><b id="stDealer">继续坐庄</b></li>
+          <li><span>我的筹码</span><b id="stChips">53</b></li>
+        </ul>
+        <p class="st-ach hidden" id="stAch"></p>
+      </div>
+    </div>
+    <div class="room-actions">
+      <div class="next-row">
+        <button id="btn-next" class="btn btn-primary btn-lg" type="button">下一局</button>
+      </div>
+      <div class="settle-actions-row">
+        <button id="btn-settle-records" class="btn btn-quiet btn-lg" type="button">查看战绩</button>
+        <button id="btn-settle-home" class="btn btn-quiet btn-lg" type="button">回首页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 本场结束 ============ -->
+  <section id="screen-over" class="screen hidden">
+    <h1 class="title ribbon-title">本场结束</h1>
+    <div class="settle-body">
+      <div class="settle-inner">
+        <p class="ov-reason" id="ovReason">有人筹码用尽</p>
+        <div class="rs-list" id="ovList"></div>
+        <p class="ov-note">按最终筹码排名；筹码为 0 或不够 20 上庄即整场结束</p>
+      </div>
+    </div>
+    <div class="room-actions">
+      <div class="next-row">
+        <button id="btn-again" class="btn btn-primary btn-lg" type="button">再来一场</button>
+      </div>
+      <div class="settle-actions-row">
+        <button id="btn-over-records" class="btn btn-quiet btn-lg" type="button">查看战绩</button>
+        <button id="btn-over-home" class="btn btn-quiet btn-lg" type="button">回首页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 战绩 ============ -->
+  <section id="screen-records" class="screen hidden">
+    <header class="rp-nav">
+      <button id="btn-records-back" class="rp-back" type="button" aria-label="返回">
+        <svg viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <path d="M21.5 6.5 11 17l10.5 10.5" stroke="#FFF7E8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <h1 class="rp-title">我的战绩</h1>
+      <button id="btn-ach-from-records" class="rp-act" type="button" aria-label="我的成就">
+        <svg viewBox="0 0 26 26" fill="none" aria-hidden="true">
+          <path d="M8.4 4.6h9.2v5.1a4.6 4.6 0 0 1-9.2 0V4.6Z" stroke="#F5C15C" stroke-width="1.7" stroke-linejoin="round"/>
+          <path d="M8.4 6.3H5.5v1.5a3.4 3.4 0 0 0 3.2 3.4M17.6 6.3h2.9v1.5a3.4 3.4 0 0 1-3.2 3.4"
+                stroke="#F5C15C" stroke-width="1.6" stroke-linecap="round"/>
+          <path d="M13 14.3v3.4M9.7 21.3h6.6" stroke="#F5C15C" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+        <b id="achEntryNum">—</b>
+      </button>
+    </header>
+
+    <main class="rp-scroll">
+      <section class="rp-sum flat" id="rpSum">
+        <span class="rp-sum-label">筹码峰值</span>
+        <div class="rp-sum-value"><span id="rpPeakBig">50</span><span class="rp-unit">枚</span></div>
+        <div class="rp-sum-meta">
+          <span class="rp-meta-item"><b id="rpGames">0</b> 局</span>
+          <i class="rp-vsep" aria-hidden="true"></i>
+          <span class="rp-meta-item">胜率 <b id="rpWinrate">0%</b></span>
+        </div>
+      </section>
+
+      <div class="rp-grid">
+        <div class="rp-gcard win"><span class="rp-glabel"><i class="rp-gdot"></i>胜</span><b id="rpWins" class="rp-gnum">0</b></div>
+        <div class="rp-gcard lose"><span class="rp-glabel"><i class="rp-gdot"></i>负</span><b id="rpLosses" class="rp-gnum">0</b></div>
+        <div class="rp-gcard flat"><span class="rp-glabel"><i class="rp-gdot"></i>十点半</span><b id="rpTenHalf" class="rp-gnum">0</b></div>
+      </div>
+
+      <section class="rp-bests" aria-label="记录">
+        <div class="rp-best">
+          <span class="rp-best-k">最长连胜</span>
+          <span class="rp-best-v"><b id="rpStreak">0</b><i>局</i></span>
+        </div>
+        <div class="rp-best">
+          <span class="rp-best-k">单局最高</span>
+          <span class="rp-best-v"><b id="rpBestWin">0</b><i>枚</i></span>
+        </div>
+        <div class="rp-best">
+          <span class="rp-best-k">五张不败</span>
+          <span class="rp-best-v"><b id="rpFive">0</b><i>次</i></span>
+        </div>
+      </section>
+
+      <div class="rp-list-head">
+        <h2>最近对局</h2>
+        <span class="rp-list-count" id="rpListCount">0 局</span>
+      </div>
+      <ul class="rp-list" id="rpList"></ul>
+    </main>
+  </section>
+
+  <!-- ============ 成就 ============ -->
+  <section id="screen-ach" class="screen hidden">
+    <header class="rp-nav">
+      <button id="btn-ach-back" class="rp-back" type="button" aria-label="返回">
+        <svg viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <path d="M21.5 6.5 11 17l10.5 10.5" stroke="#FFF7E8" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <h1 class="rp-title">我的成就</h1>
+    </header>
+    <main class="rp-scroll">
+      <div class="ach-head">
+        <div class="ach-count"><b id="achUnlocked">0</b><span>/ <span id="achTotal">10</span> 已解锁</span></div>
+        <div class="ach-head-side"><span class="ach-head-label">本地成就</span></div>
+      </div>
+      <ul class="ach-grid" id="achGrid"></ul>
+      <p class="rp-note ach-note">成就只统计本机对局；清空战绩会一并清除成就进度</p>
+    </main>
+  </section>
+
+  <!-- ============ 弹窗：开局设置 ============ -->
+  <div id="modal-setup" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="setup-title">
+    <div class="modal-box">
+      <button class="modal-x" type="button" data-close="modal-setup" aria-label="关闭">
+        <svg viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <path d="M9 9l16 16M25 9 9 25" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <h3 id="setup-title">开局</h3>
+
+      <p class="setup-label">玩法</p>
+      <div class="seg" id="segMode" role="group" aria-label="玩法">
+        <button class="seg-btn is-on" type="button" data-mode="ai">人机对战</button>
+        <button class="seg-btn" type="button" data-mode="local">好友同玩</button>
+      </div>
+
+      <p class="setup-label">人数</p>
+      <div class="seg" id="segCount" role="group" aria-label="人数">
+        <button class="seg-btn" type="button" data-count="2">2 人</button>
+        <button class="seg-btn is-on" type="button" data-count="3">3 人</button>
+        <button class="seg-btn" type="button" data-count="4">4 人</button>
+      </div>
+
+      <p class="setup-note" id="setupNote">你 + 2 位电脑 · 每人 50 枚 · 轮流坐庄</p>
+      <button id="btnSetupGo" class="btn btn-primary btn-lg" type="button">开始</button>
+    </div>
+  </div>
+
+  <!-- ============ 弹窗：规则 ============ -->
+  <div id="modal-rules" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="rules-title">
+    <div class="modal-box">
+      <button class="modal-x" type="button" data-close="modal-rules" aria-label="关闭">
+        <svg viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <path d="M9 9l16 16M25 9 9 25" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <h3 id="rules-title">玩法规则</h3>
+      <p>一副牌去掉大小王。A 算 1 点，2–10 按面值，J/Q/K 各算 0.5 点；合计超过 <b>10.5</b> 就爆牌。</p>
+      <p><b>轮流坐庄</b>：每人 50 枚筹码，轮到谁坐庄就从自己筹码里拿出 <b>20 枚</b> 做庄池。庄池输光、或者比上庄时多出 20 枚，就下庄换人。</p>
+      <p><b>下注</b>：闲家每局只能下 1、2、3 三档中的一档。庄家的牌在闲家行动时是暗牌，轮到他才翻。</p>
+      <p><b>比牌</b>：庄家优先。都爆、同点、都是十点半，一律算庄赢。</p>
+      <p><b>赔率</b>：庄家十点半并获胜，闲家输 2 倍。闲家五张牌没爆赢 3 倍；五张且十点半赢 6 倍；五张爆了输 3 倍。</p>
+      <p><b>结束</b>：有人筹码归零，或者轮到某人坐庄时筹码不够 20 枚，整场结束，按筹码排名。</p>
+      <button class="btn btn-secondary btn-lg" type="button" data-close="modal-rules">知道了</button>
+    </div>
+  </div>
+
+  <!-- ============ 弹窗：设置 ============ -->
+  <div id="modal-settings" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <div class="modal-box">
+      <button class="modal-x" type="button" data-close="modal-settings" aria-label="关闭">
+        <svg viewBox="0 0 34 34" fill="none" aria-hidden="true">
+          <path d="M9 9l16 16M25 9 9 25" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <h3 id="settings-title">设置</h3>
+      <div class="set-row">
+        <div>
+          <div class="set-label">音效与背景音乐</div>
+          <div class="set-state" id="soundState">开</div>
+        </div>
+        <button id="btnSoundToggle" class="btn btn-secondary btn-mini" type="button">关闭</button>
+      </div>
+      <div class="set-row">
+        <div>
+          <div class="set-label">本机数据</div>
+          <div class="set-state" id="dataState">战绩与成就保存在本机</div>
+        </div>
+        <button id="btnClearData" class="btn btn-danger btn-mini" type="button">清空</button>
+      </div>
+      <button class="btn btn-ghost on-light btn-lg" type="button" data-close="modal-settings">关闭</button>
+    </div>
+  </div>
+
+  <!-- ============ 弹窗：清空确认 ============ -->
+  <div id="modal-clear" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="clear-title">
+    <div class="modal-box">
+      <h3 id="clear-title">清空全部数据？</h3>
+      <p>战绩与成就都会回到初始状态，无法恢复。</p>
+      <div class="set-actions">
+        <button class="btn btn-ghost on-light" type="button" data-close="modal-clear">取消</button>
+        <button id="btnClearConfirm" class="btn btn-primary" type="button">确认清空</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+</div>
+</div>
+
+<noscript><div class="noscript">本游戏需要启用 JavaScript。</div></noscript>
+
+<script src="./js/params.js?v=202611232c"></script>
+<script src="./js/rules.js?v=202611232c"></script>
+<script src="./js/match.js?v=202611232c"></script>
+<script src="./js/card.js?v=202611232c"></script>
+<script src="./js/sfx.js?v=202611232c"></script>
+<script src="./js/achievements.js?v=202611232c"></script>
+<script src="./js/game.js?v=202611232c"></script>
+</body>
+</html>

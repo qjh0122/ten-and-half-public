@@ -1,0 +1,624 @@
+/* 十点半 · 本作新增组件
+ *
+ * 纪律：**不改 css/style.css 一行**。那份是六选五的线上样式，逐像素复用；
+ * 本文件只补十点半自己的形状：首页信息条、多人牌桌座位、结算逐人明细、开局设置。
+ * 所有颜色/字号/圆角/时长都引自 style.css 的 token，不新造档位。
+ */
+
+/* ================= 首页 ================= */
+.home-strip {
+  width: 100%;
+  max-width: 620px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  margin: 2px 0 18px;
+  border-radius: var(--r-card);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)), rgba(8, 26, 21, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.hs-cell { flex: 1 1 0; min-width: 0; text-align: center; }
+.hs-k { display: block; font-size: var(--fs-4); color: var(--gray-aux); letter-spacing: 1px; }
+.hs-v {
+  display: block;
+  margin-top: 6px;
+  font-size: var(--num-3);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--gold-light);
+  font-variant-numeric: tabular-nums;
+}
+.hs-sep { flex: 0 0 1px; width: 1px; height: 52px; background: rgba(255, 255, 255, 0.1); }
+.home-foot {
+  margin: 16px 0 0;
+  font-size: var(--fs-4);
+  color: rgba(255, 255, 255, 0.34);
+  letter-spacing: 0.5px;
+}
+
+/* ================= 牌桌顶栏 ================= */
+.tt-top {
+  position: relative;      /* 返回键是 static，但保留锚点便于将来绝对定位不跑偏 */
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  min-height: 88px;
+}
+.tt-top .rp-back {
+  position: static;        /* 覆盖 records.css 的 absolute + top:50%（那是给 .rp-nav 用的） */
+  transform: none;
+  left: auto;
+  top: auto;
+  flex: 0 0 auto;
+}
+.tt-stat {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 8px 6px;
+  border-radius: var(--r-card);
+  text-align: center;
+  background: rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+.tt-k { display: block; font-size: var(--fs-4); color: var(--gray-aux); letter-spacing: 0.5px; }
+.tt-v {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--num-3);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--gold-light);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ================= 牌桌：庄家区 ================= */
+.tt-felt {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 2px 0 6px;
+}
+
+.tt-zone { width: 100%; }
+.tt-zone-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.tt-banker-tag {
+  flex: 0 0 auto;
+  padding: 2px 12px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(180deg, var(--gold-light), var(--gold-deep));
+  color: var(--gold-ink);
+  font-size: var(--fs-4);
+  font-weight: 800;
+  letter-spacing: 1px;
+  box-shadow: 0 0 14px rgba(245, 193, 92, 0.35);
+}
+.tt-zone-name {
+  font-size: var(--fs-3);
+  font-weight: 700;
+  color: var(--warm-white);
+  letter-spacing: 1px;
+}
+.tt-zone-chips {
+  margin-left: auto;
+  font-size: var(--fs-4);
+  color: var(--gray-aux);
+  font-variant-numeric: tabular-nums;
+}
+.tt-pts {
+  font-size: var(--num-2);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--warm-white);
+  font-variant-numeric: tabular-nums;
+  transition: color var(--dur-2) var(--ease-std);
+}
+/* 爆牌用涨红、十点半用金 —— 与结算页的徽记同一套语言 */
+.tt-pts.bust { color: var(--up-red); }
+.tt-pts.tenhalf { color: var(--gold-light); text-shadow: 0 0 18px rgba(245, 193, 92, 0.75); }
+
+.tt-cards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--card-gap, 12px);
+  min-height: 196px;
+}
+.tt-card {
+  display: block;
+  flex: 0 0 auto;
+  border-radius: var(--r-card);
+  background: #fff;
+  box-shadow: var(--elev-2), inset 0 0 0 1px rgba(58, 29, 0, 0.07);
+}
+.tt-card.face-down { box-shadow: var(--elev-2), var(--edge-hairline); }
+
+/* 未发牌时的空位：虚线牌位。
+   没有它，下注态只剩几个标签 + 一大片空毡面，玩家会以为「页面没加载完」。 */
+.tt-ghost {
+  display: block;
+  flex: 0 0 auto;
+  border: 2px dashed rgba(255, 255, 255, 0.16);
+  border-radius: var(--r-card);
+  background: rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.03);
+}
+
+/* ================= 牌桌：中间状态条 ================= */
+.tt-mid {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 6px 0;
+}
+/* 桌线：两条从边缘淡入的金线，把庄家区和闲家区分开 */
+.tt-mid::before,
+.tt-mid::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 168px;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(245, 193, 92, 0), rgba(245, 193, 92, 0.38));
+  pointer-events: none;
+}
+.tt-mid::before { left: 0; }
+.tt-mid::after { right: 0; transform: scaleX(-1); }
+/* 「10.5」的淡金水印：不抢读数，只是让中间那块空毡面有内容 */
+.tt-mid-label {
+  position: absolute;
+  font-size: 132px;
+  font-weight: 800;
+  letter-spacing: 10px;
+  line-height: 1;
+  color: rgba(245, 193, 92, 0.07);
+  pointer-events: none;
+  user-select: none;
+}
+.tt-status {
+  position: relative;
+  z-index: 1;
+  display: inline-block;
+  max-width: 100%;
+  padding: 10px 30px;
+  border-radius: var(--r-pill);
+  background: rgba(8, 26, 21, 0.86);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  color: var(--gold-light);
+  font-size: var(--fs-3);
+  line-height: 1.3;
+}
+.tt-status.hot { background: var(--gold); color: var(--gold-ink); font-weight: 800; }
+.tt-status.danger { background: var(--cta-red); color: var(--warm-white); font-weight: 800; }
+
+/* ================= 牌桌：闲家座位 =================
+ * 竖排「座位行」而不是横排方块：
+ *   · 三人局三扇牌横着摆会连成一条白带，谁是谁分不清；
+ *   · 竖排后牌能画到固定宽度，发牌时不会因为张数变化而抖版式；
+ *   · 点数独占一栏、字号拉满，扫一眼就知道各家多少点。
+ */
+.tt-seats {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.seat {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr) 104px;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: var(--r-card);
+  background: rgba(6, 20, 16, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  min-height: 164px;
+  transition: background var(--dur-2) var(--ease-std), box-shadow var(--dur-2) var(--ease-std);
+}
+/* 轮到谁：金色描边 + 淡金底。用 box-shadow 不用 border，
+   避免盒子尺寸变化引起下方按钮位移（那会让真点击落偏）。 */
+.seat.is-turn {
+  background: rgba(245, 193, 92, 0.12);
+  box-shadow: inset 0 0 0 2px var(--gold), 0 0 22px rgba(245, 193, 92, 0.2);
+}
+.seat.is-done { opacity: 0.72; }
+
+.seat-who {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.seat-name {
+  font-size: var(--fs-3);
+  font-weight: 700;
+  color: var(--warm-white);
+  letter-spacing: 0.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seat-chips {
+  font-size: var(--fs-4);
+  color: var(--gray-aux);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.seat-cards {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  min-height: 40px;
+}
+.seat-cards .tt-card { border-radius: 10px; }
+
+.seat-tally {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 0;
+}
+.seat-pts {
+  font-size: var(--num-2);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--warm-white);
+  font-variant-numeric: tabular-nums;
+}
+.seat-pts.bust { color: var(--up-red); }
+.seat-pts.tenhalf { color: var(--gold-light); text-shadow: 0 0 16px rgba(245, 193, 92, 0.7); }
+.seat-bet {
+  flex: 0 0 auto;
+  padding: 1px 12px;
+  border-radius: var(--r-pill);
+  background: rgba(255, 255, 255, 0.1);
+  font-size: var(--fs-4);
+  color: var(--gold-light);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.seat-bet.is-empty { background: transparent; color: rgba(255, 255, 255, 0.28); }
+
+/* ================= 动作条 ================= */
+/* 主按钮文案会变（确认下注 / 要牌 / 发牌中…），如果用 flex 的 auto 基准，
+ * 它的宽度会随文案跳动，右边的「停牌」跟着左右移 —— 手指按下去时按钮已经挪走了，
+ * 表现就是「点了没反应」。用 grid 把停牌列钉死，主按钮吃剩余宽度。 */
+.game-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  width: 100%;
+  max-width: 560px;
+}
+.game-actions .btn { width: 100%; margin: 0; }
+#btnStand { min-width: 190px; }
+/* 停牌被规则锁住时留一个可解释的禁用态，而不是把按钮抽走（抽走会让主按钮变宽） */
+#btnStand.is-locked {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* 三个档位用「筹码」造型：圆角厚边 + 双层底，和按钮的凸起语言一致，
+ * 但尺寸明显小于主按钮 —— 一眼能分出「选参数」和「下决定」。 */
+.bet-row {
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  gap: 16px;
+  /* 不用 display:none 收起来：动作条在它下面，收起来会把主按钮整体挪位，
+     刚点完「确认下注」的手指就会落到别处。用 visibility 收，几何不动。 */
+}
+.bet-row.is-off {
+  visibility: hidden;
+  pointer-events: none;
+}
+.bet-chip {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 104px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 4px;
+  border: 2px solid rgba(255, 255, 255, 0.16);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 72%),
+    rgba(0, 0, 0, 0.28);
+  color: var(--warm-white);
+  font-family: inherit;
+  cursor: pointer;
+  transition: transform var(--dur-1) var(--ease-std), border-color var(--dur-2) var(--ease-std),
+              background var(--dur-2) var(--ease-std), box-shadow var(--dur-2) var(--ease-std);
+}
+.bet-chip b {
+  font-size: var(--num-3);
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+.bet-chip i {
+  font-style: normal;
+  font-size: var(--fs-4);
+  color: var(--gray-aux);
+  letter-spacing: 1px;
+}
+.bet-chip:active { transform: scale(0.96); }
+.bet-chip.is-on {
+  border-color: var(--gold);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 224, 138, 0.35), rgba(255, 224, 138, 0) 72%),
+    rgba(245, 193, 92, 0.14);
+  box-shadow: 0 0 0 2px rgba(245, 193, 92, 0.28), 0 8px 22px rgba(0, 0, 0, 0.3);
+}
+.bet-chip.is-on b { color: var(--gold-light); }
+.bet-chip.is-on i { color: var(--gold); }
+.bet-chip[disabled] { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+.tt-hint { margin: 0; font-size: var(--fs-4); color: var(--gray-aux); letter-spacing: 0.5px; }
+
+/* ================= 结算主体 ================= */
+.st-hero { text-align: center; margin: 2px 0 16px; }
+.st-badge {
+  display: inline-block;
+  padding: 8px 40px;
+  border-radius: var(--r-pill);
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: var(--warm-white);
+}
+.st-badge.win { background: linear-gradient(180deg, #E94040, var(--cta-red)); box-shadow: var(--elev-1); }
+.st-badge.lose { background: linear-gradient(180deg, #12A07F, var(--brand-green)); box-shadow: var(--elev-1); }
+.st-badge.push { background: var(--disable-bg); box-shadow: var(--elev-1); }
+.st-badge.tenhalf {
+  background: linear-gradient(180deg, var(--gold-light), var(--gold-deep));
+  color: var(--warm-ink);
+  box-shadow: 0 0 26px rgba(245, 193, 92, 0.5);
+}
+.st-net {
+  margin-top: 12px;
+  font-size: var(--num-1);
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.st-net.pos { color: var(--up-red); }       /* 涨红：赢筹码 */
+.st-net.neg { color: var(--down-green); }   /* 跌绿：输筹码 */
+.st-net.zero { color: var(--gray-aux); }
+.st-sub { margin: 8px 0 0; font-size: var(--fs-3); color: var(--gray-aux); }
+
+/* 逐人明细：一人一行，名字 / 点对点 / 结果 / 净胜 */
+.rs-list {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-card);
+  background: rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.rs-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.rs-row:first-child { border-top: 0; }
+.rs-row.is-dealer { background: rgba(245, 193, 92, 0.08); }
+.rs-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  font-size: var(--fs-3);
+  font-weight: 700;
+  color: var(--warm-white);
+}
+.rs-name span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rs-tag-mini {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border-radius: var(--r-pill);
+  background: linear-gradient(180deg, var(--gold-light), var(--gold-deep));
+  color: var(--gold-ink);
+  font-size: 18px;
+  font-weight: 800;
+}
+.rs-pts {
+  font-size: var(--fs-4);
+  color: var(--gray-aux);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rs-pts b { color: var(--warm-white); font-size: var(--fs-3); }
+.rs-pts .bust { color: var(--up-red); }
+.rs-pts .tenhalf { color: var(--gold-light); }
+.rs-tag {
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-4);
+  font-weight: 800;
+  white-space: nowrap;
+}
+.rs-tag.win { background: rgba(255, 93, 93, 0.18); color: var(--up-red); }
+.rs-tag.lose { background: rgba(61, 220, 132, 0.16); color: var(--down-green); }
+.rs-net {
+  min-width: 84px;
+  text-align: right;
+  font-size: var(--fs-2);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.rs-net.pos { color: var(--up-red); }
+.rs-net.neg { color: var(--down-green); }
+.rs-net.zero { color: var(--gray-aux); }
+
+.st-rows {
+  list-style: none;
+  margin: 14px 0 4px;
+  padding: 0;
+  border-radius: var(--r-card);
+  background: rgba(0, 0, 0, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+.st-rows li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  font-size: var(--fs-3);
+  color: var(--gray-aux);
+}
+.st-rows li:first-child { border-top: 0; }
+.st-rows b { color: var(--warm-white); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.st-ach {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: var(--fs-4);
+  font-weight: 700;
+  color: var(--gold-light);
+  letter-spacing: 0.5px;
+}
+
+/* ================= 本场结束 ================= */
+.ov-reason {
+  margin: 0 0 16px;
+  text-align: center;
+  font-size: var(--fs-2);
+  font-weight: 700;
+  color: var(--gold-light);
+  line-height: 1.4;
+}
+.ov-note {
+  margin: 14px 0 0;
+  text-align: center;
+  font-size: var(--fs-4);
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.5;
+}
+.ov-rank {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: var(--fs-4);
+  font-weight: 800;
+  color: var(--gray-aux);
+}
+.ov-rank.top {
+  background: linear-gradient(180deg, var(--gold-light), var(--gold-deep));
+  color: var(--gold-ink);
+}
+
+/* ================= 开局设置弹窗 ================= */
+.setup-label {
+  margin: 18px 0 10px;
+  font-size: var(--fs-4);
+  color: var(--text-muted);
+  letter-spacing: 1px;
+  text-align: left;
+}
+.seg {
+  display: flex;
+  gap: 12px;
+  padding: 6px;
+  border-radius: var(--r-card);
+  background: rgba(58, 29, 0, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(58, 29, 0, 0.08);
+}
+.seg-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 88px;
+  padding: 10px 6px;
+  border: 0;
+  border-radius: var(--r-chip);
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: var(--fs-2);
+  font-weight: 700;
+  cursor: pointer;
+  transition: background var(--dur-2) var(--ease-std), color var(--dur-2) var(--ease-std),
+              box-shadow var(--dur-2) var(--ease-std);
+}
+.seg-btn.is-on {
+  background: linear-gradient(180deg, #FFFDF7, #F3E7C8);
+  color: var(--warm-ink);
+  box-shadow: 0 2px 10px rgba(58, 29, 0, 0.16), inset 0 0 0 1px rgba(58, 29, 0, 0.1);
+}
+.seg-btn:active { transform: scale(0.98); }
+.setup-note {
+  margin: 16px 0 20px;
+  font-size: var(--fs-4);
+  color: var(--text-muted);
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* ================= 设置弹窗 ================= */
+.set-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  border-bottom: 1px solid rgba(58, 29, 0, 0.1);
+  text-align: left;
+}
+.set-label { font-size: var(--fs-2); font-weight: 700; color: var(--warm-ink); }
+.set-state { margin-top: 6px; font-size: var(--fs-4); color: var(--text-secondary); }
+.set-actions { display: flex; gap: 16px; margin-top: 8px; }
+.set-actions .btn { flex: 1 1 0; min-width: 0; }
+
+/* 战绩页顶部那块显示的不是净胜，固定用金色（rp-sum 的 up/down/flat 是给涨跌用的） */
+#rpSum .rp-sum-value { color: var(--gold-light); }
+
+/* 成就页脚注：rp-note 的字号偏小，这里只补下边距 */
+.ach-note { margin: 20px 0 0; text-align: center; }
+
+/* ================= 无障碍与降级 ================= */
+@media (prefers-reduced-motion: reduce) {
+  .tt-card.deal-in { animation: none; }
+  .rs-net, .seat, .st-net { transition: none; }
+}
+
+/* 矮屏（16:9 手机，舞台高 < 1340）收紧纵向占用：牌面小一档、间距压一档，
+ * 保证「庄家区 + 闲家座位 + 动作条」仍然全部在首屏内。 */
+@media (max-height: 700px) {
+  .tt-cards { min-height: 168px; }
+  .bet-chip { min-height: 96px; }
+  .tt-mid { min-height: 60px; }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "ten-half-pwa",
+  "version": "2.0.0",
+  "private": true,
+  "description": "十点半 PWA（UI/交互沿用六选五）",
+  "scripts": {
+    "test": "node --test test/rules.test.mjs test/match-sim.test.mjs",
+    "serve": "python -m http.server 18888 --bind 127.0.0.1",
+    "probe": "node tools/probe.mjs"
+  }
+}
