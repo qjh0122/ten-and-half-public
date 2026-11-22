@@ -5,6 +5,7 @@
   "description": "十点半 PWA（UI/交互沿用六选五）",
   "scripts": {
     "test": "node --test test/rules.test.mjs test/match-sim.test.mjs",
+    "check:version": "node tools/check-version.mjs",
     "serve": "python -m http.server 18888 --bind 127.0.0.1",
     "probe": "node tools/probe.mjs"
   }

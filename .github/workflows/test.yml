@@ -1,0 +1,47 @@
+name: test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # 规则内核 35 条 + 整场经济模拟 5 条，无依赖、不需要 npm install
+      - name: 规则内核与整场模拟单测
+        run: npm test
+
+      # 这条单测和探针都抓不到：它们读本地文件，感受不到 SW 缓存
+      - name: 版本号三处一致（index.html / sw.js / version.json）
+        run: npm run check:version
+
+      # 公开库是只读镜像：私有发布脚本、探针产物都不该出现在这里。
+      # 用 repository.private 判断而不是硬编码仓库名，改名不会让这一步静默失效。
+      - name: 公库完整性自检（仅公开库）
+        if: ${{ github.event.repository.private == false }}
+        run: |
+          fail=0
+          for p in tools/publish-public.sh tmp-shots .probe-profile .workbuddy; do
+            if [ -e "$p" ]; then
+              echo "::error::$p 不该出现在公库（它只存在于私有库，或属于探针产物）"
+              fail=1
+            fi
+          done
+          if [ -e LICENSE ]; then echo "✓ LICENSE 在位"; else echo "::warning::公库缺少 LICENSE"; fi
+          exit $fail
